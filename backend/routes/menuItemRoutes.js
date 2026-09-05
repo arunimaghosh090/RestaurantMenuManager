@@ -2,14 +2,31 @@ const express = require("express");
 const router = express.Router();
 
 const MenuItem = require("../models/MenuItem");
+const authMiddleware = require("../middleware/authMiddleware");
 
 // ===============================
-// GET ALL MENU ITEMS
+// GET ALL MENU ITEMS (PUBLIC)
 // GET /menuItems
+// Query options:
+//   ?available=true (filter by availability)
+//   ?sort=price_asc | price_desc
 // ===============================
 router.get("/", async (req, res) => {
   try {
-    const menuItems = await MenuItem.find();
+    const filter = {};
+    if (req.query.available === "true") {
+      filter.available = true;
+    }
+
+    let query = MenuItem.find(filter);
+
+    if (req.query.sort === "price_asc") {
+      query = query.sort({ price: 1 });
+    } else if (req.query.sort === "price_desc") {
+      query = query.sort({ price: -1 });
+    }
+
+    const menuItems = await query.exec();
 
     res.status(200).json(menuItems);
   } catch (error) {
@@ -22,7 +39,7 @@ router.get("/", async (req, res) => {
 
 
 // ===============================
-// GET MENU ITEM BY ID
+// GET MENU ITEM BY ID (PUBLIC)
 // GET /menuItems/:id
 // ===============================
 router.get("/:id", async (req, res) => {
@@ -46,10 +63,10 @@ router.get("/:id", async (req, res) => {
 
 
 // ===============================
-// CREATE MENU ITEM
+// CREATE MENU ITEM (PROTECTED - ADMIN ONLY)
 // POST /menuItems
 // ===============================
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const { name, price, category, available } = req.body;
 
@@ -57,7 +74,7 @@ router.post("/", async (req, res) => {
       name,
       price,
       category,
-      available
+      available: available !== undefined ? available : true
     });
 
     const savedItem = await menuItem.save();
@@ -73,10 +90,10 @@ router.post("/", async (req, res) => {
 
 
 // ===============================
-// UPDATE MENU ITEM
+// UPDATE MENU ITEM (PROTECTED - ADMIN ONLY)
 // PUT /menuItems/:id
 // ===============================
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const updatedItem = await MenuItem.findByIdAndUpdate(
       req.params.id,
@@ -104,10 +121,10 @@ router.put("/:id", async (req, res) => {
 
 
 // ===============================
-// DELETE MENU ITEM
+// DELETE MENU ITEM (PROTECTED - ADMIN ONLY)
 // DELETE /menuItems/:id
 // ===============================
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const deletedItem = await MenuItem.findByIdAndDelete(req.params.id);
 
